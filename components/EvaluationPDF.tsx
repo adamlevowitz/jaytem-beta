@@ -9,21 +9,18 @@ import {
 const styles = StyleSheet.create({
   page: {
     padding: 40,
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Helvetica',
   },
-  header: {
-    marginBottom: 20,
-  },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 10,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 5,
+    marginBottom: 20,
   },
   clientInfo: {
     marginBottom: 20,
@@ -41,44 +38,49 @@ const styles = StyleSheet.create({
   value: {
     flex: 1,
   },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
+  sectionHeader: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    paddingBottom: 5,
+    marginTop: 10,
+    padding: 5,
+    color: 'white',
   },
-  sectionSubtitle: {
-    fontSize: 14,
+  alphaHeader: {
+    backgroundColor: '#1e40af',
+  },
+  betaHeader: {
+    backgroundColor: '#991b1b',
+  },
+  kayceeHeader: {
+    backgroundColor: '#166534',
+  },
+  sectionTitle: {
+    fontSize: 12,
     fontWeight: 'bold',
     marginBottom: 8,
+    marginTop: 10,
   },
   content: {
-    lineHeight: 1.5,
+    lineHeight: 1.4,
     textAlign: 'justify',
-  },
-  jaytemHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  divider: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    marginVertical: 15,
+    marginBottom: 10,
   },
   footer: {
     position: 'absolute',
     bottom: 30,
     left: 40,
     right: 40,
-    fontSize: 9,
+    fontSize: 8,
     color: '#999',
     textAlign: 'center',
+  },
+  pageNumber: {
+    position: 'absolute',
+    bottom: 20,
+    right: 40,
+    fontSize: 8,
+    color: '#999',
   },
 });
 
@@ -93,9 +95,12 @@ interface EvaluationPDFProps {
   };
   clientStory: string;
   aiResponses: {
-    persona?: string;
-    caseAnalysis?: string;
-    caseStrategy?: string;
+    alpha01?: string;
+    alpha02?: string;
+    beta01?: string;
+    beta02?: string;
+    kaycee01?: string;
+    kaycee02?: string;
   };
   createdAt: string;
 }
@@ -116,14 +121,11 @@ export default function EvaluationPDF({
 
   return (
     <Document>
+      {/* Cover Page */}
       <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Marshall, Ginsburg & Motley LLP</Text>
-          <Text style={styles.subtitle}>Case Evaluation</Text>
-        </View>
+        <Text style={styles.title}>Marshall, Ginsburg & Motley LLP</Text>
+        <Text style={styles.subtitle}>Case Evaluation</Text>
 
-        {/* Client Info */}
         <View style={styles.clientInfo}>
           <View style={styles.clientInfoRow}>
             <Text style={styles.label}>Client:</Text>
@@ -153,50 +155,58 @@ export default function EvaluationPDF({
           </View>
         </View>
 
-        <View style={styles.divider} />
+        <Text style={styles.sectionTitle}>Client Story</Text>
+        <Text style={styles.content}>{clientStory}</Text>
 
-        {/* Client Story */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Client Story</Text>
-          <Text style={styles.content}>{clientStory}</Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Jaytem Persona */}
-        <View style={styles.section}>
-          <Text style={styles.jaytemHeader}>JAYTEM</Text>
-          <Text style={styles.sectionSubtitle}>Jaytem Persona</Text>
-          <Text style={styles.content}>{aiResponses.persona}</Text>
-        </View>
-
-        <Text style={styles.footer}>
-          Confidential - Attorney Work Product
-        </Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
       </Page>
 
-      {/* Page 2 - Case Analysis */}
+      {/* Alpha 01 */}
       <Page size="A4" style={styles.page}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Case Analysis</Text>
-          <Text style={styles.content}>{aiResponses.caseAnalysis}</Text>
-        </View>
-
-        <Text style={styles.footer}>
-          Confidential - Attorney Work Product
-        </Text>
+        <Text style={[styles.sectionHeader, styles.alphaHeader]}>ALPHA - Plaintiff Analysis</Text>
+        <Text style={styles.sectionTitle}>Case Evaluation</Text>
+        <Text style={styles.content}>{aiResponses.alpha01}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
       </Page>
 
-      {/* Page 3 - Case Strategy */}
+      {/* Alpha 02 */}
       <Page size="A4" style={styles.page}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Case Strategy</Text>
-          <Text style={styles.content}>{aiResponses.caseStrategy}</Text>
-        </View>
+        <Text style={[styles.sectionHeader, styles.alphaHeader]}>ALPHA - Plaintiff Analysis</Text>
+        <Text style={styles.sectionTitle}>Draft Complaint</Text>
+        <Text style={styles.content}>{aiResponses.alpha02}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
+      </Page>
 
-        <Text style={styles.footer}>
-          Confidential - Attorney Work Product
-        </Text>
+      {/* Beta 01 */}
+      <Page size="A4" style={styles.page}>
+        <Text style={[styles.sectionHeader, styles.betaHeader]}>BETA - Defense Analysis</Text>
+        <Text style={styles.sectionTitle}>Defense Counter-Analysis</Text>
+        <Text style={styles.content}>{aiResponses.beta01}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
+      </Page>
+
+      {/* Beta 02 */}
+      <Page size="A4" style={styles.page}>
+        <Text style={[styles.sectionHeader, styles.betaHeader]}>BETA - Defense Analysis</Text>
+        <Text style={styles.sectionTitle}>Defense Strategy</Text>
+        <Text style={styles.content}>{aiResponses.beta02}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
+      </Page>
+
+      {/* Kaycee 01 */}
+      <Page size="A4" style={styles.page}>
+        <Text style={[styles.sectionHeader, styles.kayceeHeader]}>KAYCEE - Final Plaintiff Strategy</Text>
+        <Text style={styles.sectionTitle}>Strengthened Case Strategy</Text>
+        <Text style={styles.content}>{aiResponses.kaycee01}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
+      </Page>
+
+      {/* Kaycee 02 */}
+      <Page size="A4" style={styles.page}>
+        <Text style={[styles.sectionHeader, styles.kayceeHeader]}>KAYCEE - Final Plaintiff Strategy</Text>
+        <Text style={styles.sectionTitle}>Final Enhanced Complaint & Roadmap</Text>
+        <Text style={styles.content}>{aiResponses.kaycee02}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
       </Page>
     </Document>
   );

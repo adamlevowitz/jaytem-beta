@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
 import { pdf } from '@react-pdf/renderer';
 import EvaluationPDF from '@/components/EvaluationPDF';
 
@@ -20,11 +19,26 @@ interface SessionData {
   clientStory: string;
   createdAt: string;
   aiResponses: {
-    persona?: string;
-    caseAnalysis?: string;
-    caseStrategy?: string;
+    alpha01?: string;
+    alpha02?: string;
+    beta01?: string;
+    beta02?: string;
+    kaycee01?: string;
+    kaycee02?: string;
   };
 }
+
+const defaultPrompts = {
+  alphaPersona: '',
+  alpha01: '',
+  alpha02: '',
+  betaPersona: '',
+  beta01: '',
+  beta02: '',
+  kayceePersona: '',
+  kaycee01: '',
+  kaycee02: '',
+};
 
 export default function EvaluationPage() {
   const router = useRouter();
@@ -43,64 +57,52 @@ export default function EvaluationPage() {
     const data: SessionData = JSON.parse(stored);
     setSessionData(data);
 
-    // If we already have AI responses, don't re-run
-    if (data.aiResponses?.persona) {
+    if (data.aiResponses?.kaycee02) {
       setIsLoading(false);
       return;
     }
 
-    // Run AI evaluation
     runEvaluation(data);
   }, [router]);
 
   const runEvaluation = async (data: SessionData) => {
     try {
-      setCurrentStep('Generating Persona...');
-      const personaRes = await fetch('/api/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'persona',
-          clientStory: data.clientStory,
-          clientInfo: data.clientInfo,
-        }),
-      });
-      const personaData = await personaRes.json();
-      data.aiResponses.persona = personaData.result;
-      updateSession(data);
+      const storedPrompts = localStorage.getItem('jt_prompts');
+      const prompts = storedPrompts ? JSON.parse(storedPrompts) : defaultPrompts;
 
-      setCurrentStep('Analyzing Case...');
-      const analysisRes = await fetch('/api/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'analysis',
-          clientStory: data.clientStory,
-          clientInfo: data.clientInfo,
-          previousResponses: { persona: data.aiResponses.persona },
-        }),
-      });
-      const analysisData = await analysisRes.json();
-      data.aiResponses.caseAnalysis = analysisData.result;
-      updateSession(data);
+      const steps = [
+        { key: 'alpha01', label: 'Alpha: Analyzing case...' },
+        { key: 'alpha02', label: 'Alpha: Drafting complaint...' },
+        { key: 'beta01', label: 'Beta: Defense analysis...' },
+        { key: 'beta02', label: 'Beta: Defense strategy...' },
+        { key: 'kaycee01', label: 'Kaycee: Strengthening case...' },
+        { key: 'kaycee02', label: 'Kaycee: Final strategy...' },
+      ];
 
-      setCurrentStep('Developing Strategy...');
-      const strategyRes = await fetch('/api/evaluate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'strategy',
-          clientStory: data.clientStory,
-          clientInfo: data.clientInfo,
-          previousResponses: {
-            persona: data.aiResponses.persona,
-            caseAnalysis: data.aiResponses.caseAnalysis,
-          },
-        }),
-      });
-      const strategyData = await strategyRes.json();
-      data.aiResponses.caseStrategy = strategyData.result;
-      updateSession(data);
+      for (const step of steps) {
+        setCurrentStep(step.label);
+
+        const res = await fetch('/api/evaluate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            step: step.key,
+            clientStory: data.clientStory,
+            clientInfo: data.clientInfo,
+            previousResponses: data.aiResponses,
+            prompts,
+          }),
+        });
+
+        const result = await res.json();
+        data.aiResponses[step.key as keyof typeof data.aiResponses] = result.result;
+        updateSession(data);
+
+        // 3 second delay between calls
+        if (step.key !== 'kaycee02') {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
+      }
 
       setIsLoading(false);
     } catch (err) {
@@ -123,20 +125,21 @@ export default function EvaluationPage() {
   };
 
   if (!sessionData) {
-    return <div className="min-h-screen bg-[#1e1060] flex items-center justify-center">
-      <div className="text-white">Loading...</div>
-    </div>;
+    return (
+      <div className="min-h-screen bg-[#1e1060] flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-[#1e1060]">
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <p className="text-gray-500 text-sm mb-2">Container title</p>
-          <hr className="mb-6" />
-
           <h1 className="text-4xl font-bold text-gray-900 mb-6">
-            Marshall, Ginsburg & Motley LLP<br />Case Evaluation
+            Marshall, Ginsburg & Motley LLP
+            <br />
+            Case Evaluation
           </h1>
 
           {/* Client Info */}
@@ -157,6 +160,7 @@ export default function EvaluationPage() {
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
               <p className="text-gray-600">{currentStep}</p>
+              <p className="text-gray-400 text-sm mt-2">This may take a few minutes...</p>
             </div>
           ) : error ? (
             <div className="text-red-500 text-center py-12">{error}</div>
@@ -164,33 +168,58 @@ export default function EvaluationPage() {
             <>
               {/* Client Story */}
               <section className="mb-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-4">Client Story</h2>
-                <hr className="mb-4" />
-                <div className="text-gray-700 whitespace-pre-wrap">{sessionData.clientStory}</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Client Story</h2>
+                <div className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded">{sessionData.clientStory}</div>
               </section>
 
-              {/* Jaytem Persona */}
+              {/* Alpha Section */}
               <section className="mb-8">
-                <h2 className="text-4xl font-bold text-gray-900 mb-2">JAYTEM</h2>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Jaytem Persona</h3>
-                <div className="text-gray-700 whitespace-pre-wrap">{sessionData.aiResponses.persona}</div>
+                <h2 className="text-3xl font-bold text-blue-800 mb-4">ALPHA - Plaintiff Analysis</h2>
+                
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Case Evaluation</h3>
+                  <div className="text-gray-700 whitespace-pre-wrap bg-blue-50 p-4 rounded">{sessionData.aiResponses.alpha01}</div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Draft Complaint</h3>
+                  <div className="text-gray-700 whitespace-pre-wrap bg-blue-50 p-4 rounded">{sessionData.aiResponses.alpha02}</div>
+                </div>
               </section>
 
-              {/* Case Analysis */}
+              {/* Beta Section */}
               <section className="mb-8">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Case Analysis</h3>
-                <div className="text-gray-700 whitespace-pre-wrap">{sessionData.aiResponses.caseAnalysis}</div>
+                <h2 className="text-3xl font-bold text-red-800 mb-4">BETA - Defense Analysis</h2>
+                
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Defense Counter-Analysis</h3>
+                  <div className="text-gray-700 whitespace-pre-wrap bg-red-50 p-4 rounded">{sessionData.aiResponses.beta01}</div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Defense Strategy</h3>
+                  <div className="text-gray-700 whitespace-pre-wrap bg-red-50 p-4 rounded">{sessionData.aiResponses.beta02}</div>
+                </div>
               </section>
 
-              {/* Case Strategy */}
+              {/* Kaycee Section */}
               <section className="mb-8">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Case Strategy</h3>
-                <div className="text-gray-700 whitespace-pre-wrap">{sessionData.aiResponses.caseStrategy}</div>
+                <h2 className="text-3xl font-bold text-green-800 mb-4">KAYCEE - Final Plaintiff Strategy</h2>
+                
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Strengthened Case Strategy</h3>
+                  <div className="text-gray-700 whitespace-pre-wrap bg-green-50 p-4 rounded">{sessionData.aiResponses.kaycee01}</div>
+                </div>
+
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Final Enhanced Complaint & Roadmap</h3>
+                  <div className="text-gray-700 whitespace-pre-wrap bg-green-50 p-4 rounded">{sessionData.aiResponses.kaycee02}</div>
+                </div>
               </section>
             </>
           )}
 
-                   {/* Action Buttons */}
+          {/* Action Buttons */}
           <div className="flex justify-center gap-4 mt-8">
             <button
               onClick={async () => {
