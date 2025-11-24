@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { pdf } from '@react-pdf/renderer';
+import EvaluationPDF from '@/components/EvaluationPDF';
+
 interface SessionData {
   sessionId: string;
   clientType: string;
@@ -187,8 +190,29 @@ export default function EvaluationPage() {
             </>
           )}
 
-          {/* New Evaluation Button */}
-          <div className="flex justify-center mt-8">
+                   {/* Action Buttons */}
+          <div className="flex justify-center gap-4 mt-8">
+            <button
+              onClick={async () => {
+                const blob = await pdf(
+                  <EvaluationPDF
+                    clientInfo={sessionData.clientInfo}
+                    clientStory={sessionData.clientStory}
+                    aiResponses={sessionData.aiResponses}
+                    createdAt={sessionData.createdAt}
+                  />
+                ).toBlob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${sessionData.clientInfo.lastName}_${sessionData.clientInfo.firstName}_Evaluation.pdf`;
+                link.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 transition-colors"
+            >
+              Download PDF
+            </button>
             <button
               onClick={() => {
                 sessionStorage.removeItem('jt_session_data');
