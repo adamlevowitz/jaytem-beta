@@ -18,9 +18,11 @@ export default function LoginPage() {
       body: JSON.stringify({ email, password }),
     });
 
-    if (res.ok) {
-      router.push('/intake');
-    } else {
+   if (res.ok) {
+  const data = await res.json();
+  sessionStorage.setItem('jt_user', JSON.stringify(data.user));
+  router.push('/intake');
+} else {
       setError('Invalid email or password');
     }
   };

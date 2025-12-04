@@ -8,79 +8,130 @@ import {
 
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
+    padding: 50,
     fontSize: 10,
     fontFamily: 'Helvetica',
   },
-  title: {
-    fontSize: 22,
+  header: {
+    marginBottom: 30,
+    borderBottom: '2 solid #1e1060',
+    paddingBottom: 15,
+  },
+  firmName: {
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 10,
+    color: '#1e1060',
+    marginBottom: 5,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
-    marginBottom: 20,
+    marginBottom: 15,
   },
   clientInfo: {
-    marginBottom: 20,
-    padding: 10,
-    backgroundColor: '#f5f5f5',
+    marginBottom: 25,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
   },
   clientInfoRow: {
     flexDirection: 'row',
-    marginBottom: 3,
+    marginBottom: 4,
+    fontSize: 9,
   },
   label: {
     fontWeight: 'bold',
-    width: 120,
+    width: 110,
+    color: '#374151',
   },
   value: {
     flex: 1,
+    color: '#1f2937',
   },
   sectionHeader: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 10,
-    marginTop: 10,
-    padding: 5,
-    color: 'white',
+    marginBottom: 12,
+    marginTop: 20,
+    paddingBottom: 6,
+    borderBottom: '2 solid #1e1060',
+    color: '#1e1060',
   },
-  alphaHeader: {
-    backgroundColor: '#1e40af',
-  },
-  betaHeader: {
-    backgroundColor: '#991b1b',
-  },
-  kayceeHeader: {
-    backgroundColor: '#166534',
-  },
-  sectionTitle: {
-    fontSize: 12,
+  h1: {
+    fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 8,
-    marginTop: 10,
+    marginTop: 16,
+    color: '#1e1060',
+  },
+  h2: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 6,
+    marginTop: 14,
+    color: '#374151',
+  },
+  h3: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    marginBottom: 4,
+    marginTop: 12,
+    color: '#374151',
+  },
+  paragraph: {
+    fontSize: 10,
+    lineHeight: 1.6,
+    marginBottom: 8,
+    color: '#1f2937',
+    textAlign: 'justify',
+  },
+  listItem: {
+    fontSize: 10,
+    lineHeight: 1.6,
+    marginBottom: 4,
+    marginLeft: 15,
+    color: '#1f2937',
+  },
+  bold: {
+    fontWeight: 'bold',
   },
   content: {
-    lineHeight: 1.4,
+    lineHeight: 1.6,
     textAlign: 'justify',
-    marginBottom: 10,
+    marginBottom: 12,
+    color: '#1f2937',
+  },
+  storyBox: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 4,
+    marginBottom: 15,
   },
   footer: {
     position: 'absolute',
     bottom: 30,
-    left: 40,
-    right: 40,
+    left: 50,
+    right: 50,
     fontSize: 8,
-    color: '#999',
+    color: '#9ca3af',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  disclaimer: {
+    position: 'absolute',
+    bottom: 45,
+    left: 50,
+    right: 50,
+    fontSize: 7,
+    color: '#9ca3af',
     textAlign: 'center',
   },
   pageNumber: {
     position: 'absolute',
-    bottom: 20,
-    right: 40,
+    bottom: 30,
+    right: 50,
     fontSize: 8,
-    color: '#999',
+    color: '#9ca3af',
   },
 });
 
@@ -95,21 +146,91 @@ interface EvaluationPDFProps {
   };
   clientStory: string;
   aiResponses: {
-    alpha01?: string;
-    alpha02?: string;
-    beta01?: string;
-    beta02?: string;
     kaycee01?: string;
     kaycee02?: string;
   };
   createdAt: string;
+  organization: string;
+  acknowledgedAt?: string;
 }
+
+// Simple markdown parser for PDF
+const parseMarkdown = (text: string) => {
+  if (!text) return [];
+
+  const lines = text.split('\n');
+  const elements: { type: string; content: string }[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    if (!line) continue;
+
+    // Headers
+    if (line.startsWith('### ')) {
+      elements.push({ type: 'h3', content: line.replace('### ', '') });
+    } else if (line.startsWith('## ')) {
+      elements.push({ type: 'h2', content: line.replace('## ', '') });
+    } else if (line.startsWith('# ')) {
+      elements.push({ type: 'h1', content: line.replace('# ', '') });
+    }
+    // List items
+    else if (line.startsWith('- ') || line.startsWith('* ')) {
+      elements.push({ type: 'listItem', content: '• ' + line.substring(2) });
+    } else if (/^\d+\.\s/.test(line)) {
+      elements.push({ type: 'listItem', content: line });
+    }
+    // Regular paragraph
+    else {
+      elements.push({ type: 'paragraph', content: line });
+    }
+  }
+
+  return elements;
+};
+
+// Strip markdown formatting for inline text (bold, italic)
+const cleanInlineMarkdown = (text: string) => {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove bold **
+    .replace(/\*(.*?)\*/g, '$1')       // Remove italic *
+    .replace(/__(.*?)__/g, '$1')       // Remove bold __
+    .replace(/_(.*?)_/g, '$1')         // Remove italic _
+    .replace(/`(.*?)`/g, '$1');        // Remove inline code
+};
+
+const MarkdownContent = ({ text }: { text: string }) => {
+  const elements = parseMarkdown(text);
+
+  return (
+    <View>
+      {elements.map((el, idx) => {
+        const content = cleanInlineMarkdown(el.content);
+
+        switch (el.type) {
+          case 'h1':
+            return <Text key={idx} style={styles.h1}>{content}</Text>;
+          case 'h2':
+            return <Text key={idx} style={styles.h2}>{content}</Text>;
+          case 'h3':
+            return <Text key={idx} style={styles.h3}>{content}</Text>;
+          case 'listItem':
+            return <Text key={idx} style={styles.listItem}>{content}</Text>;
+          default:
+            return <Text key={idx} style={styles.paragraph}>{content}</Text>;
+        }
+      })}
+    </View>
+  );
+};
 
 export default function EvaluationPDF({
   clientInfo,
   clientStory,
   aiResponses,
   createdAt,
+  organization,
+   acknowledgedAt,
 }: EvaluationPDFProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -119,17 +240,25 @@ export default function EvaluationPDF({
     });
   };
 
+  const disclaimerText = 'This document was generated using Microsoft Azure AI services. Client data is not stored or retained after the session ends. This does not constitute legal advice. All information should be reviewed by a licensed attorney before any action is taken.';
+
   return (
     <Document>
-      {/* Cover Page */}
+      {/* Cover Page with Client Story */}
       <Page size="A4" style={styles.page}>
-        <Text style={styles.title}>Marshall, Ginsburg & Motley LLP</Text>
-        <Text style={styles.subtitle}>Case Evaluation</Text>
+        <View style={styles.header}>
+          <Text style={styles.firmName}>{organization}</Text>
+          <Text style={styles.subtitle}>Case Evaluation & Strategic Analysis</Text>
+        </View>
 
         <View style={styles.clientInfo}>
           <View style={styles.clientInfoRow}>
             <Text style={styles.label}>Client:</Text>
             <Text style={styles.value}>{clientInfo.firstName} {clientInfo.lastName}</Text>
+          </View>
+          <View style={styles.clientInfoRow}>
+            <Text style={styles.label}>Date Prepared:</Text>
+            <Text style={styles.value}>{formatDate(createdAt)}</Text>
           </View>
           <View style={styles.clientInfoRow}>
             <Text style={styles.label}>Email:</Text>
@@ -143,70 +272,53 @@ export default function EvaluationPDF({
             <Text style={styles.label}>Primary Language:</Text>
             <Text style={styles.value}>{clientInfo.primaryLanguage}</Text>
           </View>
-          {clientInfo.secondaryLanguage && (
-            <View style={styles.clientInfoRow}>
-              <Text style={styles.label}>Secondary Language:</Text>
-              <Text style={styles.value}>{clientInfo.secondaryLanguage}</Text>
-            </View>
-          )}
+       <View style={styles.clientInfoRow}>
+            <Text style={styles.label}>Secondary Language:</Text>
+            <Text style={styles.value}>{clientInfo.secondaryLanguage || 'N/A'}</Text>
+          </View>
           <View style={styles.clientInfoRow}>
-            <Text style={styles.label}>Prepared on:</Text>
-            <Text style={styles.value}>{formatDate(createdAt)}</Text>
+            <Text style={styles.label}>Disclaimer Acknowledged:</Text>
+            <Text style={styles.value}>
+              {acknowledgedAt 
+                ? new Date(acknowledgedAt).toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+                : 'N/A'}
+            </Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Client Story</Text>
-        <Text style={styles.content}>{clientStory}</Text>
+        <Text style={styles.sectionHeader}>Client Narrative</Text>
+        <View style={styles.storyBox}>
+          <Text style={styles.content}>{clientStory}</Text>
+        </View>
 
-        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
+        <Text style={styles.disclaimer}>{disclaimerText}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product — {organization}</Text>
+        <Text style={styles.pageNumber} render={({ pageNumber }) => `${pageNumber}`} fixed />
       </Page>
 
-      {/* Alpha 01 */}
-      <Page size="A4" style={styles.page}>
-        <Text style={[styles.sectionHeader, styles.alphaHeader]}>ALPHA - Plaintiff Analysis</Text>
-        <Text style={styles.sectionTitle}>Case Evaluation</Text>
-        <Text style={styles.content}>{aiResponses.alpha01}</Text>
-        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
+      {/* Case Assessment Page */}
+      <Page size="A4" style={styles.page} wrap>
+        <Text style={styles.sectionHeader}>Case Assessment</Text>
+        <MarkdownContent text={aiResponses.kaycee01 || ''} />
+        <Text style={styles.disclaimer}>{disclaimerText}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product — {organization}</Text>
+        <Text style={styles.pageNumber} render={({ pageNumber }) => `${pageNumber}`} fixed />
       </Page>
 
-      {/* Alpha 02 */}
-      <Page size="A4" style={styles.page}>
-        <Text style={[styles.sectionHeader, styles.alphaHeader]}>ALPHA - Plaintiff Analysis</Text>
-        <Text style={styles.sectionTitle}>Draft Complaint</Text>
-        <Text style={styles.content}>{aiResponses.alpha02}</Text>
-        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
-      </Page>
-
-      {/* Beta 01 */}
-      <Page size="A4" style={styles.page}>
-        <Text style={[styles.sectionHeader, styles.betaHeader]}>BETA - Defense Analysis</Text>
-        <Text style={styles.sectionTitle}>Defense Counter-Analysis</Text>
-        <Text style={styles.content}>{aiResponses.beta01}</Text>
-        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
-      </Page>
-
-      {/* Beta 02 */}
-      <Page size="A4" style={styles.page}>
-        <Text style={[styles.sectionHeader, styles.betaHeader]}>BETA - Defense Analysis</Text>
-        <Text style={styles.sectionTitle}>Defense Strategy</Text>
-        <Text style={styles.content}>{aiResponses.beta02}</Text>
-        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
-      </Page>
-
-      {/* Kaycee 01 */}
-      <Page size="A4" style={styles.page}>
-        <Text style={[styles.sectionHeader, styles.kayceeHeader]}>KAYCEE - Final Plaintiff Strategy</Text>
-        <Text style={styles.sectionTitle}>Strengthened Case Strategy</Text>
-        <Text style={styles.content}>{aiResponses.kaycee01}</Text>
-        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
-      </Page>
-
-      {/* Kaycee 02 */}
-      <Page size="A4" style={styles.page}>
-        <Text style={[styles.sectionHeader, styles.kayceeHeader]}>KAYCEE - Final Plaintiff Strategy</Text>
-        <Text style={styles.sectionTitle}>Final Enhanced Complaint & Roadmap</Text>
-        <Text style={styles.content}>{aiResponses.kaycee02}</Text>
-        <Text style={styles.footer}>Confidential - Attorney Work Product</Text>
+      {/* Strategic Action Plan Page */}
+      <Page size="A4" style={styles.page} wrap>
+        <Text style={styles.sectionHeader}>Strategic Action Plan</Text>
+        <MarkdownContent text={aiResponses.kaycee02 || ''} />
+        <Text style={styles.disclaimer}>{disclaimerText}</Text>
+        <Text style={styles.footer}>Confidential - Attorney Work Product — {organization}</Text>
+        <Text style={styles.pageNumber} render={({ pageNumber }) => `${pageNumber}`} fixed />
       </Page>
     </Document>
   );

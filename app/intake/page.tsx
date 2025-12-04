@@ -1,53 +1,52 @@
 'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
 export default function IntakePage() {
   const router = useRouter();
-  const [clientType, setClientType] = useState('individual');
-  const [formData, setFormData] = useState({
+  const [organization, setOrganization] = useState('');
+  const [clientInfo, setClientInfo] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     primaryLanguage: 'English',
     secondaryLanguage: '',
-    clientStory: '',
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clientStory, setClientStory] = useState('');
+  const [acknowledged, setAcknowledged] = useState(false);
 
-  const languages = [
-    'English', 'Spanish', 'French', 'Portuguese', 'Chinese', 
-    'Arabic', 'Russian', 'Japanese', 'Korean', 'German'
-  ];
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.clientStory || !formData.firstName) {
-      alert('Please enter client name and story');
-      return;
+  useEffect(() => {
+    const user = sessionStorage.getItem('jt_user');
+    if (user) {
+      const parsed = JSON.parse(user);
+      setOrganization(parsed.organization || '');
     }
+  }, []);
 
-    setIsSubmitting(true);
+ const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    // Store form data in sessionStorage for the evaluation page
+    const now = new Date().toISOString();
+    const sessionId = crypto.randomUUID();
+
+    // Save acknowledgment proof to Supabase
+    await supabase.from('jt_acknowledgments').insert({
+      session_id: sessionId,
+      client_email: clientInfo.email,
+      client_name: `${clientInfo.firstName} ${clientInfo.lastName}`,
+      organization: organization,
+      acknowledged_at: now,
+    });
+
     const sessionData = {
-      sessionId: crypto.randomUUID(),
-      clientType,
-      clientInfo: {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone,
-        primaryLanguage: formData.primaryLanguage,
-        secondaryLanguage: formData.secondaryLanguage,
-      },
-      clientStory: formData.clientStory,
-      createdAt: new Date().toISOString(),
+      sessionId,
+      clientInfo,
+      clientStory,
+      organization,
+      acknowledgedAt: now,
+      createdAt: now,
       aiResponses: {},
     };
 
@@ -59,134 +58,137 @@ export default function IntakePage() {
     <div className="min-h-screen bg-[#1e1060]">
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-white rounded-lg shadow-lg p-8">
-          <h1 className="text-blue-600 text-lg mb-6">Client Intake</h1>
-          <hr className="mb-6" />
-
-          {/* Client Type */}
-          <div className="mb-6">
-            <label className="flex items-center mb-2">
-              <input
-                type="radio"
-                name="clientType"
-                value="individual"
-                checked={clientType === 'individual'}
-                onChange={(e) => setClientType(e.target.value)}
-                className="mr-2"
-              />
-              <span className="text-gray-700">Individual</span>
-            </label>
-            <label className="flex items-center">
-              <input
-                type="radio"
-                name="clientType"
-                value="corporate"
-                checked={clientType === 'corporate'}
-                onChange={(e) => setClientType(e.target.value)}
-                className="mr-2"
-              />
-              <span className="text-gray-700">Corporate</span>
-            </label>
+          <div className="mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              {organization || 'Loading...'}
+            </h1>
+            <p className="text-black text-lg">Client Intake</p>
           </div>
 
-          {/* Form Fields */}
-          <div className="grid grid-cols-3 gap-6 mb-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Client Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  value={clientInfo.firstName}
+                  onChange={(e) => setClientInfo({ ...clientInfo, firstName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  value={clientInfo.lastName}
+                  onChange={(e) => setClientInfo({ ...clientInfo, lastName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={clientInfo.email}
+                  onChange={(e) => setClientInfo({ ...clientInfo, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone *
+                </label>
+                <input
+                  type="tel"
+                  value={clientInfo.phone}
+                  onChange={(e) => setClientInfo({ ...clientInfo, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Primary Language *
+                </label>
+                <input
+                  type="text"
+                  value={clientInfo.primaryLanguage}
+                  onChange={(e) => setClientInfo({ ...clientInfo, primaryLanguage: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Secondary Language
+                </label>
+                <input
+                  type="text"
+                  value={clientInfo.secondaryLanguage}
+                  onChange={(e) => setClientInfo({ ...clientInfo, secondaryLanguage: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Client Story */}
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">First Name</label>
-              <input
-                type="text"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleChange}
-                placeholder="First Name"
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Client Story *
+              </label>
+              <textarea
+                value={clientStory}
+                onChange={(e) => setClientStory(e.target.value)}
+                rows={8}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              
-              <label className="block text-sm font-bold text-gray-700 mb-1 mt-4">Last Name</label>
-              <input
-                type="text"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleChange}
-                placeholder="Last Name"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Describe the legal issue in detail (copy and paste in any language)..."
+                required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Email Address</label>
+            {/* Disclaimer Acknowledgment */}
+            <div className="flex items-start gap-3">
               <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                placeholder="Email Address"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                type="checkbox"
+                id="acknowledge"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-[#1e1060] focus:ring-[#1e1060]"
+                required
               />
-              
-              <label className="block text-sm font-bold text-gray-700 mb-1 mt-4">Phone Number</label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="Phone Number"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <label htmlFor="acknowledge" className="text-sm text-gray-600">
+                I understand that submitting this form does not create an attorney-client relationship.
+  This information will be processed using Microsoft Azure AI services and is not stored or retained after your session ends.
+  This does not constitute legal advice. All matters require review by a licensed attorney. <span className="text-red-500">*</span>
+ </label>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">Primary Language</label>
-              <select
-                name="primaryLanguage"
-                value={formData.primaryLanguage}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            {/* Submit Button */}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="bg-[#1e1060] text-white py-3 px-8 rounded-md hover:bg-[#2d1a8f] transition-colors font-medium"
               >
-                {languages.map(lang => (
-                  <option key={lang} value={lang}>{lang}</option>
-                ))}
-              </select>
-              
-              <label className="block text-sm font-bold text-gray-700 mb-1 mt-4">Secondary Language</label>
-              <select
-                name="secondaryLanguage"
-                value={formData.secondaryLanguage}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">None</option>
-                {languages.map(lang => (
-                  <option key={lang} value={lang}>{lang}</option>
-                ))}
-              </select>
+                Submit Intake
+              </button>
             </div>
-          </div>
-
-          {/* Client Story */}
-          <div className="mb-6">
-            <label className="block text-sm text-gray-700 mb-1">
-              Enter the client's account in their own words. Text may be provided in any language — simply paste it in.
-              <span className="text-red-500 ml-1">*</span>
-            </label>
-            <textarea
-              name="clientStory"
-              value={formData.clientStory}
-              onChange={handleChange}
-              rows={10}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <div className="flex justify-center">
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !formData.clientStory || !formData.firstName}
-              className="bg-[#7c8db5] text-white py-3 px-12 rounded-md hover:bg-[#6b7ca4] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Processing...' : 'Submit'}
-            </button>
-          </div>
+          </form>
         </div>
       </div>
     </div>

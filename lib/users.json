@@ -1,0 +1,10 @@
+{
+  "users": [
+    {
+      "email": "adamlevowitz@gmail.com",
+      "password": "$2b$10$1ST2xpWgF/Y8LL/NdVfktOZ4K.rhOePGAYRRYp0Lv.uYCZHrwx5Ea",
+      "organization": "Marshall, Ginsburg & Motley LLP",
+      "role": "admin"
+    }
+  ]
+}

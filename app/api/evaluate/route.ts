@@ -1,22 +1,25 @@
 import { NextResponse } from 'next/server';
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const AZURE_API_KEY = process.env.AZURE_OPENAI_API_KEY;
+const AZURE_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
+const DEPLOYMENT_NAME = process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
 
-async function callOpenAI(content: string) {
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+async function callAzureOpenAI(content: string) {
+  const url = `${AZURE_ENDPOINT}/openai/deployments/${DEPLOYMENT_NAME}/chat/completions?api-version=2024-08-01-preview`;
+  
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'api-key': AZURE_API_KEY!,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
       messages: [{ role: 'user', content }],
       temperature: 0.7,
       max_tokens: 4000,
     }),
   });
-
+  
   const data = await res.json();
   return data.choices[0].message.content;
 }
@@ -24,7 +27,7 @@ async function callOpenAI(content: string) {
 export async function POST(request: Request) {
   try {
     const { step, clientStory, clientInfo, previousResponses, prompts } = await request.json();
-
+    
     const clientContext = `
 CLIENT NAME: ${clientInfo.lastName}, ${clientInfo.firstName}
 EMAIL: ${clientInfo.email}
@@ -44,6 +47,7 @@ ${clientStory}`;
 ${prompts.alpha01}
 
 ${clientContext}`;
+
     }
 
     // Alpha 02: Draft complaint based on Alpha 01
@@ -57,6 +61,7 @@ ${clientStory}
 
 Alpha Case Analysis:
 ${previousResponses.alpha01}`;
+     
     }
 
     // Beta 01: Defense analysis of plaintiff's case
@@ -72,6 +77,7 @@ ${previousResponses.alpha01}
 
 Alpha Case Strategy:
 ${previousResponses.alpha02}`;
+      
     }
 
     // Beta 02: Defense strategy document
@@ -82,9 +88,11 @@ ${prompts.beta02}
 
 Client Story:
 ${clientStory}
-
+Alpha Case Strategy:
+${previousResponses.alpha02}
 Beta Case Analysis:
 ${previousResponses.beta01}`;
+      
     }
 
     // Kaycee 01: Strengthened plaintiff strategy
@@ -100,6 +108,7 @@ ${previousResponses.beta01}
 
 Beta Case Strategy:
 ${previousResponses.beta02}`;
+      
     }
 
     // Kaycee 02: Final enhanced complaint
@@ -110,14 +119,18 @@ ${prompts.kaycee02}
 
 Client Story:
 ${clientStory}
-
+Beta Case Strategy:
+${previousResponses.beta02}
 Kaycee Case Analysis:
 ${previousResponses.kaycee01}`;
+      
     }
 
-    const result = await callOpenAI(prompt);
+    
+    
+    const result = await callAzureOpenAI(prompt);
+    
     return NextResponse.json({ result });
-
   } catch (error) {
     console.error('Evaluation error:', error);
     return NextResponse.json({ error: 'Failed to generate evaluation' }, { status: 500 });
