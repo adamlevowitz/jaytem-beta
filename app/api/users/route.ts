@@ -1,30 +1,27 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import fs from 'fs';
-import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 
-const usersFilePath = path.join(process.cwd(), 'lib', 'users.json');
-
-function readUsers() {
-  const data = fs.readFileSync(usersFilePath, 'utf-8');
-  return JSON.parse(data);
-}
-
-function writeUsers(data: any) {
-  fs.writeFileSync(usersFilePath, JSON.stringify(data, null, 2));
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function GET() {
   try {
-    const data = readUsers();
-    // Return users without passwords
-    const safeUsers = data.users.map((u: any) => ({
+    const { data: { users }, error } = await supabase.auth.admin.listUsers();
+
+    if (error) throw error;
+
+    const safeUsers = users.map((u) => ({
+      id: u.id,
       email: u.email,
-      organization: u.organization,
-      role: u.role,
+      organization: u.user_metadata?.organization || '',
+      role: u.user_metadata?.role || 'user',
     }));
+
     return NextResponse.json({ users: safeUsers });
   } catch (error) {
+    console.error('Error loading users:', error);
     return NextResponse.json({ error: 'Failed to load users' }, { status: 500 });
   }
 }
@@ -32,32 +29,26 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { email, password, organization, role } = await request.json();
-    
+
     if (!email || !password || !organization) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const data = readUsers();
-    
-    // Check if user already exists
-    if (data.users.find((u: any) => u.email.toLowerCase() === email.toLowerCase())) {
-      return NextResponse.json({ error: 'User already exists' }, { status: 400 });
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Add new user
-    data.users.push({
+    const { data, error } = await supabase.auth.admin.createUser({
       email,
-      password: hashedPassword,
-      organization,
-      role: role || 'user',
+      password,
+      email_confirm: true,
+      user_metadata: {
+        organization,
+        role: role || 'user',
+      },
     });
 
-    writeUsers(data);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, user: data.user });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
   }
@@ -66,26 +57,35 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const { email, password, organization, role } = await request.json();
-    
+
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
     }
 
-    const data = readUsers();
-    const userIndex = data.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (userIndex === -1) {
+    // Find user by email
+    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+    if (listError) throw listError;
+
+    const user = users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Update fields
-    if (organization) data.users[userIndex].organization = organization;
-    if (role) data.users[userIndex].role = role;
-    if (password) {
-      data.users[userIndex].password = await bcrypt.hash(password, 10);
+    const updates: any = {};
+    if (password) updates.password = password;
+    if (organization || role) {
+      updates.user_metadata = {
+        ...user.user_metadata,
+        ...(organization && { organization }),
+        ...(role && { role }),
+      };
     }
 
-    writeUsers(data);
+    const { error } = await supabase.auth.admin.updateUserById(user.id, updates);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -96,20 +96,25 @@ export async function PUT(request: Request) {
 export async function DELETE(request: Request) {
   try {
     const { email } = await request.json();
-    
+
     if (!email) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 });
     }
 
-    const data = readUsers();
-    const userIndex = data.users.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase());
-    
-    if (userIndex === -1) {
+    // Find user by email
+    const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+    if (listError) throw listError;
+
+    const user = users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    data.users.splice(userIndex, 1);
-    writeUsers(data);
+    const { error } = await supabase.auth.admin.deleteUser(user.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
