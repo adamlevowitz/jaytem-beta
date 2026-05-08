@@ -62,7 +62,7 @@ export default function IntakePage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">
               {organization || 'Loading...'}
             </h1>
-            <p className="text-black text-lg">Client Intake may9 </p>
+            <p className="text-black text-lg">Client Intake</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
